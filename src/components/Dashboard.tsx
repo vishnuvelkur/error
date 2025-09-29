@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Package, TrendingUp, AlertTriangle, Eye, Edit, Trash2 } from 'lucide-react';
+import { Users, Package, TrendingUp, AlertTriangle, Eye, CreditCard as Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
 import { Crop, User } from '../types';
