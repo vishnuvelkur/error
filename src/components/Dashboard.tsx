@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Package, TrendingUp, AlertTriangle, Eye, CreditCard as Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { api } from '../lib/api';
+import { apiService } from '../lib/api';
 import { Crop, User } from '../types';
 
 export default function Dashboard() {
@@ -24,8 +24,8 @@ export default function Dashboard() {
     try {
       setLoading(true);
       const [cropsData, usersData] = await Promise.all([
-        api.getCrops(),
-        api.getUsers()
+        apiService.getCrops(),
+        apiService.getUsers()
       ]);
       
       setCrops(cropsData);
@@ -46,7 +46,7 @@ export default function Dashboard() {
 
   const handleVerifyCrop = async (cropId: string) => {
     try {
-      await api.verifyCrop(cropId);
+      await apiService.verifyCrop(cropId);
       loadData();
     } catch (error) {
       console.error('Error verifying crop:', error);
@@ -56,7 +56,7 @@ export default function Dashboard() {
   const handleDeleteCrop = async (cropId: string) => {
     if (window.confirm('Are you sure you want to delete this crop?')) {
       try {
-        await api.deleteCrop(cropId);
+        await apiService.deleteCrop(cropId);
         loadData();
       } catch (error) {
         console.error('Error deleting crop:', error);
