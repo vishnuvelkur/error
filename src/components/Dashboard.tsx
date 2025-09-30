@@ -9,8 +9,9 @@ import FarmerCropSelector from './FarmerCropSelector';
 import QRCodeModal from './QRCodeModal';
 import QRScannerModal from './QRScannerModal';
 import AIAnalysis from './AIAnalysis';
-import WeatherWidget from './WeatherWidget';
-import PriceTrends from './PriceTrends';
+import CompactWeatherWidget from './CompactWeatherWidget';
+import CompactPriceTrends from './CompactPriceTrends';
+import AdminDashboard from './AdminDashboard';
 import AIChatbot from './AIChatbot';
 
 const Dashboard: React.FC = () => {
@@ -33,6 +34,11 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     loadCrops();
   }, [user]);
+
+  // If user is admin, show admin dashboard
+  if (user?.role === 'admin') {
+    return <AdminDashboard />;
+  }
 
   const loadCrops = () => {
     if (!user) return;
@@ -157,8 +163,8 @@ const Dashboard: React.FC = () => {
     <div className="flex gap-6">
       {/* Left Sidebar - Weather */}
       <div className="w-80 space-y-6">
-        <WeatherWidget />
-        <PriceTrends />
+        <CompactWeatherWidget />
+        <CompactPriceTrends />
       </div>
 
       {/* Main Content */}
