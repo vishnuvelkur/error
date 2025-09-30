@@ -90,6 +90,11 @@ export const useAuthProvider = () => {
     localStorage.setItem('current_user', JSON.stringify(userSession));
   };
 
+  // Add overloaded signUp function for backward compatibility
+  const signUpCompat = async (email: string, password: string, role: UserRole) => {
+    return signUp(email, password, role, '', '');
+  };
+
   const signOut = async () => {
     apiService.signOut();
     setUser(null);
@@ -115,7 +120,7 @@ export const useAuthProvider = () => {
     user,
     loading,
     signIn,
-    signUp,
+    signUp: signUpCompat,
     signOut
   };
 };
