@@ -31,15 +31,6 @@ const Dashboard: React.FC = () => {
   const { user } = useAuth();
 
 
-  useEffect(() => {
-    loadCrops();
-  }, [user]);
-
-  // If user is admin, show admin dashboard
-  if (user?.role === 'admin') {
-    return <AdminDashboard />;
-  }
-
   const loadCrops = () => {
     if (!user) return;
 
@@ -48,6 +39,15 @@ const Dashboard: React.FC = () => {
     setCrops(userCrops);
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadCrops();
+  }, [user]);
+
+  // If user is admin, show admin dashboard
+  if (user?.role === 'admin') {
+    return <AdminDashboard />;
+  }
 
 
   const handleAddCrop = (cropData: Omit<Crop, 'id' | 'user_id' | 'created_at'>) => {
