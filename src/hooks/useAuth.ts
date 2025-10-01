@@ -34,7 +34,31 @@ export const useAuthProvider = () => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // For local storage implementation
+    try {
+      // Try backend authentication first
+      const response = await apiService.signIn(email, password);
+      
+      if (response.data) {
+        const userSession: User = {
+          id: response.data.id.toString(),
+          email: response.data.email,
+          role: response.data.role.toLowerCase() as UserRole,
+          created_at: new Date().toISOString(),
+          farmer_id: response.data.farmerId,
+          distributor_id: response.data.distributorId,
+          name: response.data.name,
+          location: response.data.location
+        };
+
+        setUser(userSession);
+        storage.setCurrentUser(userSession);
+        return;
+      }
+    } catch (error) {
+      console.error('Backend authentication failed:', error);
+    }
+
+    // Fallback to local storage
     const foundUser = storage.findUser(email, password);
     
     if (!foundUser) {
@@ -53,11 +77,30 @@ export const useAuthProvider = () => {
     };
 
     setUser(userSession);
-    localStorage.setItem('current_user', JSON.stringify(userSession));
+    storage.setCurrentUser(userSession);
   };
 
   const signUp = async (email: string, password: string, role: UserRole, name: string, location: string) => {
-    // For local storage implementation, create user directly
+    try {
+      // Try backend registration first
+      const response = await apiService.signUp({
+        email,
+        password,
+        name,
+        location,
+        role: role.toUpperCase()
+      });
+      
+      if (response.data) {
+        // Registration successful, now sign in
+        await signIn(email, password);
+        return;
+      }
+    } catch (error) {
+      console.error('Backend registration failed:', error);
+    }
+
+    // Fallback to local storage
     if (storage.userExists(email)) {
       throw new Error('User with this email already exists');
     }
@@ -87,7 +130,7 @@ export const useAuthProvider = () => {
     };
 
     setUser(userSession);
-    localStorage.setItem('current_user', JSON.stringify(userSession));
+    storage.setCurrentUser(userSession);
   };
 
   // Add overloaded signUp function for backward compatibility
@@ -103,16 +146,8 @@ export const useAuthProvider = () => {
 
   useEffect(() => {
     // Check for existing user session
-    const storedUser = localStorage.getItem('current_user');
-    if (storedUser) {
-      try {
-        const userSession = JSON.parse(storedUser);
-        setUser(userSession);
-      } catch (error) {
-        console.error('Error parsing stored user:', error);
-        localStorage.removeItem('current_user');
-      }
-    }
+    const currentUser = storage.getCurrentUser();
+    setUser(currentUser);
     setLoading(false);
   }, []);
 

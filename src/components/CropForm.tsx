@@ -39,9 +39,16 @@ const CropForm: React.FC<CropFormProps> = ({ crop, onClose, onSave }) => {
     setError('');
 
     try {
+      // Validate required fields
+      if (!formData.name || !formData.crop_type || !formData.harvest_date || !formData.expiry_date || !formData.soil_type) {
+        setError('Please fill in all required fields');
+        setLoading(false);
+        return;
+      }
+
       let finalImageUrl = formData.image_url;
       
-      // If a file was selected, convert to base64 for local storage
+      // If a file was selected, convert to base64 for storage
       if (imageFile) {
         finalImageUrl = await new Promise((resolve) => {
           const reader = new FileReader();
@@ -50,20 +57,17 @@ const CropForm: React.FC<CropFormProps> = ({ crop, onClose, onSave }) => {
         });
       }
 
-      // Validate required fields
-      if (!formData.name || !formData.crop_type || !formData.harvest_date || !formData.expiry_date || !formData.soil_type) {
-        setError('Please fill in all required fields');
-        setLoading(false);
-        return;
-      }
+      const cropData = {
+        ...formData,
+        image_url: finalImageUrl,
+        // Ensure all required fields have values
+        name: formData.name.trim() || 'New Crop',
+        crop_type: formData.crop_type || 'Unknown',
+        soil_type: formData.soil_type || 'Unknown',
+        pesticides_used: formData.pesticides_used || 'Not specified'
+      };
 
-      if (crop) {
-        // Update existing crop
-        onSave(crop.id, { ...formData, image_url: finalImageUrl });
-      } else {
-        // Create new crop
-        onSave('', { ...formData, image_url: finalImageUrl });
-      }
+      onSave(crop?.id || '', cropData);
       onClose();
     } catch (err: any) {
       setError(err.message);

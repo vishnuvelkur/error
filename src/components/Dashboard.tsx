@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiService } from '../lib/api';
 import { Plus, Search, Filter, CreditCard as Edit, Trash2, Calendar, Wheat, Package, QrCode, ScanLine, Truck, Store, User, ShoppingCart, Brain, MessageCircle } from 'lucide-react';
 import { Crop } from '../types';
 import { useAuth } from '../hooks/useAuth';
@@ -32,12 +33,33 @@ const Dashboard: React.FC = () => {
 
 
   const loadCrops = () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
-    // All users see their own crops
-    const userCrops = storage.getCrops(user.id);
-    setCrops(userCrops);
-    setLoading(false);
+    setLoading(true);
+    
+    // Try to load from backend first, fallback to local storage
+    apiService.getCrops()
+      .then(response => {
+        if (response.data) {
+          setCrops(response.data);
+        } else {
+          // Fallback to local storage
+          const userCrops = storage.getCrops(user.id);
+          setCrops(userCrops);
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load crops from backend:', error);
+        // Fallback to local storage
+        const userCrops = storage.getCrops(user.id);
+        setCrops(userCrops);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
@@ -50,30 +72,94 @@ const Dashboard: React.FC = () => {
   }
 
 
-  const handleAddCrop = (cropData: Omit<Crop, 'id' | 'user_id' | 'created_at'>) => {
+  const handleAddCrop = async (cropId: string, cropData: Omit<Crop, 'id' | 'user_id' | 'created_at'>) => {
     if (!user) return;
 
-    const newCrop: Crop = {
-      ...cropData,
-      id: Math.random().toString(36).substr(2, 9),
-      user_id: user.id,
-      created_at: new Date().toISOString()
-    };
+    setLoading(true);
+    
+    try {
+      // Try to create crop in backend first
+      const response = await apiService.createCrop({
+        name: cropData.name,
+        cropType: cropData.crop_type,
+        harvestDate: cropData.harvest_date,
+        expiryDate: cropData.expiry_date,
+        soilType: cropData.soil_type,
+        pesticidesUsed: cropData.pesticides_used,
+        imageUrl: cropData.image_url
+      });
+      
+      if (response.data) {
+        // Backend creation successful
+        loadCrops();
+      } else {
+        throw new Error(response.error || 'Failed to create crop');
+      }
+    } catch (error) {
+      console.error('Failed to create crop in backend:', error);
+      
+      // Fallback to local storage
+      const newCrop: Crop = {
+        ...cropData,
+        id: Math.random().toString(36).substr(2, 9),
+        user_id: user.id,
+        created_at: new Date().toISOString()
+      };
 
-    storage.addCrop(newCrop);
-    loadCrops();
+      storage.addCrop(newCrop);
+      loadCrops();
+    }
   };
 
   const handleUpdateCrop = (cropId: string, cropData: Omit<Crop, 'id' | 'user_id' | 'created_at'>) => {
-    storage.updateCrop(cropId, cropData);
-    loadCrops();
+    setLoading(true);
+    
+    // Try to update in backend first
+    apiService.updateCrop(cropId, {
+      name: cropData.name,
+      cropType: cropData.crop_type,
+      harvestDate: cropData.harvest_date,
+      expiryDate: cropData.expiry_date,
+      soilType: cropData.soil_type,
+      pesticidesUsed: cropData.pesticides_used,
+      imageUrl: cropData.image_url
+    })
+    .then(response => {
+      if (response.data) {
+        loadCrops();
+      } else {
+        throw new Error(response.error || 'Failed to update crop');
+      }
+    })
+    .catch(error => {
+      console.error('Failed to update crop in backend:', error);
+      
+      // Fallback to local storage
+      storage.updateCrop(cropId, cropData);
+      loadCrops();
+    });
   };
 
   const handleDelete = (id: string) => {
     if (!confirm('Are you sure you want to delete this crop?')) return;
 
-    storage.deleteCrop(id);
-    loadCrops();
+    setLoading(true);
+    
+    // Try to delete from backend first
+    apiService.deleteCrop(id)
+      .then(response => {
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        loadCrops();
+      })
+      .catch(error => {
+        console.error('Failed to delete crop from backend:', error);
+        
+        // Fallback to local storage
+        storage.deleteCrop(id);
+        loadCrops();
+      });
   };
 
   const handleEdit = (crop: Crop) => {
@@ -465,7 +551,7 @@ const Dashboard: React.FC = () => {
         <CropForm
           crop={editingCrop}
           onClose={handleFormClose}
-          onSave={editingCrop ? handleUpdateCrop : handleAddCrop}
+          onSave={handleUpdateCrop}
         />
       )}
 
