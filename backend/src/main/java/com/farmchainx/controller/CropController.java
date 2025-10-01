@@ -37,8 +37,10 @@ public class CropController {
     @PostMapping
     public ResponseEntity<?> createCrop(@Valid @RequestBody Crop crop) {
         try {
+            System.out.println("Creating crop: " + crop.getName());
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             User user = (User) auth.getPrincipal();
+            System.out.println("User: " + user.getEmail());
             crop.setUser(user);
 
             // Set farmer info if user is a farmer
@@ -49,8 +51,11 @@ public class CropController {
             }
 
             Crop savedCrop = cropService.saveCrop(crop);
+            System.out.println("Crop saved with ID: " + savedCrop.getId());
             return ResponseEntity.ok(savedCrop);
         } catch (Exception e) {
+            System.err.println("Error creating crop: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.badRequest().body("Error creating crop: " + e.getMessage());
         }
     }

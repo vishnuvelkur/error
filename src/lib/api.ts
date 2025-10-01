@@ -8,7 +8,6 @@ interface ApiResponse<T> {
 class ApiService {
   private getAuthHeaders(): HeadersInit {
     const token = localStorage.getItem('auth_token');
-    console.log('Auth token:', token ? 'Present' : 'Missing');
     return {
       'Content-Type': 'application/json',
       ...(token && { 'Authorization': `Bearer ${token}` })
@@ -18,6 +17,7 @@ class ApiService {
   private async handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('API Error:', response.status, errorText);
       return { error: errorText || `HTTP error! status: ${response.status}` };
     }
 
@@ -32,6 +32,7 @@ class ApiService {
   // Authentication APIs
   async signIn(email: string, password: string): Promise<ApiResponse<any>> {
     try {
+      console.log('Attempting backend signin for:', email);
       const response = await fetch(`${API_BASE_URL}/auth/signin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -41,9 +42,11 @@ class ApiService {
       const result = await this.handleResponse(response);
       if (result.data?.token) {
         localStorage.setItem('auth_token', result.data.token);
+        console.log('Backend signin successful, token stored');
       }
       return result;
     } catch (error) {
+      console.error('Backend signin failed:', error);
       return { error: 'Network error occurred' };
     }
   }
@@ -56,6 +59,7 @@ class ApiService {
     role: string;
   }): Promise<ApiResponse<any>> {
     try {
+      console.log('Attempting backend signup for:', userData.email);
       const response = await fetch(`${API_BASE_URL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -67,6 +71,7 @@ class ApiService {
 
       return await this.handleResponse(response);
     } catch (error) {
+      console.error('Backend signup failed:', error);
       return { error: 'Network error occurred' };
     }
   }
@@ -80,13 +85,14 @@ class ApiService {
 
       return await this.handleResponse(response);
     } catch (error) {
+      console.error('Get crops failed:', error);
       return { error: 'Network error occurred' };
     }
   }
 
   async createCrop(cropData: any): Promise<ApiResponse<any>> {
     try {
-      console.log('Creating crop with data:', cropData);
+      console.log('Creating crop with backend data:', cropData);
       const response = await fetch(`${API_BASE_URL}/crops`, {
         method: 'POST',
         headers: this.getAuthHeaders(),
@@ -94,7 +100,11 @@ class ApiService {
       });
 
       const result = await this.handleResponse(response);
-      console.log('Create crop response:', result);
+      if (result.error) {
+        console.error('Backend crop creation failed:', result.error);
+      } else {
+        console.log('Backend crop creation successful:', result.data);
+      }
       return result;
     } catch (error) {
       console.error('Create crop network error:', error);
@@ -104,7 +114,7 @@ class ApiService {
 
   async updateCrop(cropId: string, cropData: any): Promise<ApiResponse<any>> {
     try {
-      console.log('Updating crop', cropId, 'with data:', cropData);
+      console.log('Updating crop', cropId, 'with backend data:', cropData);
       const response = await fetch(`${API_BASE_URL}/crops/${cropId}`, {
         method: 'PUT',
         headers: this.getAuthHeaders(),
@@ -112,7 +122,11 @@ class ApiService {
       });
 
       const result = await this.handleResponse(response);
-      console.log('Update crop response:', result);
+      if (result.error) {
+        console.error('Backend crop update failed:', result.error);
+      } else {
+        console.log('Backend crop update successful:', result.data);
+      }
       return result;
     } catch (error) {
       console.error('Update crop network error:', error);

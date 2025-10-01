@@ -39,7 +39,7 @@ export const useAuthProvider = () => {
       const response = await apiService.signIn(email, password);
       
       if (response.data) {
-        console.log('Backend authentication successful:', response.data);
+        console.log('Backend authentication successful');
         const userSession: User = {
           id: response.data.id.toString(),
           email: response.data.email,
@@ -55,10 +55,10 @@ export const useAuthProvider = () => {
         storage.setCurrentUser(userSession);
         return;
       } else {
-        console.log('Backend authentication failed:', response.error);
+        console.log('Backend authentication failed, trying local storage');
       }
     } catch (error) {
-      console.error('Backend authentication failed:', error);
+      console.log('Backend authentication error, trying local storage');
     }
 
     // Fallback to local storage
@@ -68,6 +68,7 @@ export const useAuthProvider = () => {
       throw new Error('Invalid email or password');
     }
 
+    console.log('Local storage authentication successful');
     const userSession: User = {
       id: foundUser.id,
       email: foundUser.email,

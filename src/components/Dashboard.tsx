@@ -78,9 +78,9 @@ const Dashboard: React.FC = () => {
     setLoading(true);
     
     try {
-      // Check if this is an update (cropId exists) or create (no cropId)
-      if (cropId && cropId !== '') {
+      if (cropId && cropId.trim() !== '') {
         // Update existing crop
+        console.log('Updating existing crop:', cropId);
         const response = await apiService.updateCrop(cropId, {
           name: cropData.name,
           cropType: cropData.crop_type,
@@ -92,12 +92,16 @@ const Dashboard: React.FC = () => {
         });
         
         if (response.data) {
+          console.log('Crop updated successfully');
           loadCrops();
         } else {
-          throw new Error(response.error || 'Failed to update crop');
+          console.error('Backend update failed, using local storage');
+          storage.updateCrop(cropId, cropData);
+          loadCrops();
         }
       } else {
         // Create new crop
+        console.log('Creating new crop');
         const response = await apiService.createCrop({
           name: cropData.name,
           cropType: cropData.crop_type,
@@ -109,16 +113,26 @@ const Dashboard: React.FC = () => {
         });
         
         if (response.data) {
+          console.log('Crop created successfully in backend');
           loadCrops();
         } else {
-          throw new Error(response.error || 'Failed to create crop');
+          console.error('Backend creation failed, using local storage');
+          // Fallback to local storage
+          const newCrop: Crop = {
+            ...cropData,
+            id: Math.random().toString(36).substr(2, 9),
+            user_id: user.id,
+            created_at: new Date().toISOString()
+          };
+          storage.addCrop(newCrop);
+          loadCrops();
         }
       }
     } catch (error) {
-      console.error('Failed to create crop in backend:', error);
+      console.error('Crop operation failed, using local storage fallback:', error);
       
       // Fallback to local storage
-      if (cropId && cropId !== '') {
+      if (cropId && cropId.trim() !== '') {
         // Update in local storage
         storage.updateCrop(cropId, cropData);
       } else {
