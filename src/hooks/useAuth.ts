@@ -39,6 +39,7 @@ export const useAuthProvider = () => {
       const response = await apiService.signIn(email, password);
       
       if (response.data) {
+        console.log('Backend authentication successful:', response.data);
         const userSession: User = {
           id: response.data.id.toString(),
           email: response.data.email,
@@ -53,6 +54,8 @@ export const useAuthProvider = () => {
         setUser(userSession);
         storage.setCurrentUser(userSession);
         return;
+      } else {
+        console.log('Backend authentication failed:', response.error);
       }
     } catch (error) {
       console.error('Backend authentication failed:', error);

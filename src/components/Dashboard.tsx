@@ -78,66 +78,63 @@ const Dashboard: React.FC = () => {
     setLoading(true);
     
     try {
-      // Try to create crop in backend first
-      const response = await apiService.createCrop({
-        name: cropData.name,
-        cropType: cropData.crop_type,
-        harvestDate: cropData.harvest_date,
-        expiryDate: cropData.expiry_date,
-        soilType: cropData.soil_type,
-        pesticidesUsed: cropData.pesticides_used,
-        imageUrl: cropData.image_url
-      });
-      
-      if (response.data) {
-        // Backend creation successful
-        loadCrops();
+      // Check if this is an update (cropId exists) or create (no cropId)
+      if (cropId && cropId !== '') {
+        // Update existing crop
+        const response = await apiService.updateCrop(cropId, {
+          name: cropData.name,
+          cropType: cropData.crop_type,
+          harvestDate: cropData.harvest_date,
+          expiryDate: cropData.expiry_date,
+          soilType: cropData.soil_type,
+          pesticidesUsed: cropData.pesticides_used,
+          imageUrl: cropData.image_url
+        });
+        
+        if (response.data) {
+          loadCrops();
+        } else {
+          throw new Error(response.error || 'Failed to update crop');
+        }
       } else {
-        throw new Error(response.error || 'Failed to create crop');
+        // Create new crop
+        const response = await apiService.createCrop({
+          name: cropData.name,
+          cropType: cropData.crop_type,
+          harvestDate: cropData.harvest_date,
+          expiryDate: cropData.expiry_date,
+          soilType: cropData.soil_type,
+          pesticidesUsed: cropData.pesticides_used,
+          imageUrl: cropData.image_url
+        });
+        
+        if (response.data) {
+          loadCrops();
+        } else {
+          throw new Error(response.error || 'Failed to create crop');
+        }
       }
     } catch (error) {
       console.error('Failed to create crop in backend:', error);
       
       // Fallback to local storage
-      const newCrop: Crop = {
-        ...cropData,
-        id: Math.random().toString(36).substr(2, 9),
-        user_id: user.id,
-        created_at: new Date().toISOString()
-      };
-
-      storage.addCrop(newCrop);
-      loadCrops();
-    }
-  };
-
-  const handleUpdateCrop = (cropId: string, cropData: Omit<Crop, 'id' | 'user_id' | 'created_at'>) => {
-    setLoading(true);
-    
-    // Try to update in backend first
-    apiService.updateCrop(cropId, {
-      name: cropData.name,
-      cropType: cropData.crop_type,
-      harvestDate: cropData.harvest_date,
-      expiryDate: cropData.expiry_date,
-      soilType: cropData.soil_type,
-      pesticidesUsed: cropData.pesticides_used,
-      imageUrl: cropData.image_url
-    })
-    .then(response => {
-      if (response.data) {
-        loadCrops();
+      if (cropId && cropId !== '') {
+        // Update in local storage
+        storage.updateCrop(cropId, cropData);
       } else {
-        throw new Error(response.error || 'Failed to update crop');
+        // Create in local storage
+        const newCrop: Crop = {
+          ...cropData,
+          id: Math.random().toString(36).substr(2, 9),
+          user_id: user.id,
+          created_at: new Date().toISOString()
+        };
+        storage.addCrop(newCrop);
       }
-    })
-    .catch(error => {
-      console.error('Failed to update crop in backend:', error);
-      
-      // Fallback to local storage
-      storage.updateCrop(cropId, cropData);
       loadCrops();
-    });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -551,7 +548,7 @@ const Dashboard: React.FC = () => {
         <CropForm
           crop={editingCrop}
           onClose={handleFormClose}
-          onSave={handleUpdateCrop}
+          onSave={handleAddCrop}
         />
       )}
 

@@ -8,6 +8,7 @@ interface ApiResponse<T> {
 class ApiService {
   private getAuthHeaders(): HeadersInit {
     const token = localStorage.getItem('auth_token');
+    console.log('Auth token:', token ? 'Present' : 'Missing');
     return {
       'Content-Type': 'application/json',
       ...(token && { 'Authorization': `Bearer ${token}` })
@@ -85,28 +86,36 @@ class ApiService {
 
   async createCrop(cropData: any): Promise<ApiResponse<any>> {
     try {
+      console.log('Creating crop with data:', cropData);
       const response = await fetch(`${API_BASE_URL}/crops`, {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: JSON.stringify(cropData)
       });
 
-      return await this.handleResponse(response);
+      const result = await this.handleResponse(response);
+      console.log('Create crop response:', result);
+      return result;
     } catch (error) {
+      console.error('Create crop network error:', error);
       return { error: 'Network error occurred' };
     }
   }
 
   async updateCrop(cropId: string, cropData: any): Promise<ApiResponse<any>> {
     try {
+      console.log('Updating crop', cropId, 'with data:', cropData);
       const response = await fetch(`${API_BASE_URL}/crops/${cropId}`, {
         method: 'PUT',
         headers: this.getAuthHeaders(),
         body: JSON.stringify(cropData)
       });
 
-      return await this.handleResponse(response);
+      const result = await this.handleResponse(response);
+      console.log('Update crop response:', result);
+      return result;
     } catch (error) {
+      console.error('Update crop network error:', error);
       return { error: 'Network error occurred' };
     }
   }
