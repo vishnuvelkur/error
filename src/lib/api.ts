@@ -83,11 +83,50 @@ class ApiService {
         headers: this.getAuthHeaders()
       });
 
-      return await this.handleResponse(response);
+      const result = await this.handleResponse(response);
+      if (result.data) {
+        result.data = result.data.map(this.transformCropFromBackend);
+      }
+      return result;
     } catch (error) {
       console.error('Get crops failed:', error);
       return { error: 'Network error occurred' };
     }
+  }
+
+  // Transform backend crop to frontend format
+  private transformCropFromBackend(backendCrop: any): any {
+    return {
+      id: backendCrop.id?.toString() || '',
+      name: backendCrop.name || '',
+      crop_type: backendCrop.cropType || '',
+      harvest_date: backendCrop.harvestDate || '',
+      expiry_date: backendCrop.expiryDate || '',
+      soil_type: backendCrop.soilType || '',
+      pesticides_used: backendCrop.pesticidesUsed || '',
+      image_url: backendCrop.imageUrl || '',
+      user_id: backendCrop.user?.id?.toString() || '',
+      created_at: backendCrop.createdAt || new Date().toISOString(),
+      farmer_info: backendCrop.farmerId ? {
+        farmer_id: backendCrop.farmerId,
+        name: backendCrop.farmerName || '',
+        location: backendCrop.farmerLocation || ''
+      } : undefined,
+      distributor_info: backendCrop.distributorId ? {
+        name: backendCrop.distributorName || '',
+        location: backendCrop.distributorLocation || '',
+        received_date: backendCrop.distributorReceivedDate || '',
+        sent_to_retailer: backendCrop.sentToRetailer || '',
+        retailer_location: backendCrop.retailerLocation || ''
+      } : undefined,
+      retailer_info: backendCrop.retailerName ? {
+        name: backendCrop.retailerName,
+        location: backendCrop.distributorLocationRetailer || '',
+        received_date: backendCrop.retailerReceivedDate || '',
+        received_from_distributor: backendCrop.receivedFromDistributor || '',
+        distributor_location: backendCrop.distributorLocationRetailer || ''
+      } : undefined
+    };
   }
 
   async createCrop(cropData: any): Promise<ApiResponse<any>> {
@@ -104,6 +143,9 @@ class ApiService {
         console.error('Backend crop creation failed:', result.error);
       } else {
         console.log('Backend crop creation successful:', result.data);
+        if (result.data) {
+          result.data = this.transformCropFromBackend(result.data);
+        }
       }
       return result;
     } catch (error) {
@@ -126,6 +168,9 @@ class ApiService {
         console.error('Backend crop update failed:', result.error);
       } else {
         console.log('Backend crop update successful:', result.data);
+        if (result.data) {
+          result.data = this.transformCropFromBackend(result.data);
+        }
       }
       return result;
     } catch (error) {
@@ -153,7 +198,11 @@ class ApiService {
         headers: this.getAuthHeaders()
       });
 
-      return await this.handleResponse(response);
+      const result = await this.handleResponse(response);
+      if (result.data) {
+        result.data = result.data.map(this.transformCropFromBackend);
+      }
+      return result;
     } catch (error) {
       return { error: 'Network error occurred' };
     }
@@ -165,7 +214,11 @@ class ApiService {
         headers: this.getAuthHeaders()
       });
 
-      return await this.handleResponse(response);
+      const result = await this.handleResponse(response);
+      if (result.data) {
+        result.data = result.data.map(this.transformCropFromBackend);
+      }
+      return result;
     } catch (error) {
       return { error: 'Network error occurred' };
     }
@@ -174,7 +227,11 @@ class ApiService {
   async getCropForScanning(cropId: string): Promise<ApiResponse<any>> {
     try {
       const response = await fetch(`${API_BASE_URL}/crops/scan/${cropId}`);
-      return await this.handleResponse(response);
+      const result = await this.handleResponse(response);
+      if (result.data) {
+        result.data = this.transformCropFromBackend(result.data);
+      }
+      return result;
     } catch (error) {
       return { error: 'Network error occurred' };
     }
