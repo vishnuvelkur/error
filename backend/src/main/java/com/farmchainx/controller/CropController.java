@@ -1,9 +1,7 @@
 package com.farmchainx.controller;
 
-import com.farmchainx.model.Crop;
-import com.farmchainx.model.User;
-import com.farmchainx.service.CropService;
-import com.farmchainx.service.UserService;
+import com.farmchainx.model.*;
+import com.farmchainx.repository.*;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -12,8 +10,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
@@ -21,38 +21,109 @@ import java.util.Optional;
 public class CropController {
 
     @Autowired
-    private CropService cropService;
+    private FarmerCropRepository farmerCropRepository;
 
     @Autowired
-    private UserService userService;
+    private DistributorCropRepository distributorCropRepository;
+
+    @Autowired
+    private RetailerCropRepository retailerCropRepository;
 
     @GetMapping
-    public ResponseEntity<List<Crop>> getUserCrops() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        User user = (User) auth.getPrincipal();
-        List<Crop> crops = cropService.getCropsByUser(user);
-        return ResponseEntity.ok(crops);
+    public ResponseEntity<?> getUserCrops() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            User user = (User) auth.getPrincipal();
+
+            List<Map<String, Object>> crops = new ArrayList<>();
+
+            if (user.getRole() == UserRole.FARMER) {
+                List<FarmerCrop> farmerCrops = farmerCropRepository.findByUser(user);
+                for (FarmerCrop crop : farmerCrops) {
+                    crops.add(convertFarmerCropToMap(crop));
+                }
+            } else if (user.getRole() == UserRole.DISTRIBUTOR) {
+                List<DistributorCrop> distributorCrops = distributorCropRepository.findByUser(user);
+                for (DistributorCrop crop : distributorCrops) {
+                    crops.add(convertDistributorCropToMap(crop));
+                }
+            } else if (user.getRole() == UserRole.RETAILER) {
+                List<RetailerCrop> retailerCrops = retailerCropRepository.findByUser(user);
+                for (RetailerCrop crop : retailerCrops) {
+                    crops.add(convertRetailerCropToMap(crop));
+                }
+            }
+
+            return ResponseEntity.ok(crops);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Error fetching crops: " + e.getMessage());
+        }
     }
 
     @PostMapping
-    public ResponseEntity<?> createCrop(@Valid @RequestBody Crop crop) {
+    public ResponseEntity<?> createCrop(@Valid @RequestBody Map<String, Object> cropData) {
         try {
-            System.out.println("Creating crop: " + crop.getName());
+            System.out.println("Creating crop with data: " + cropData);
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             User user = (User) auth.getPrincipal();
-            System.out.println("User: " + user.getEmail());
-            crop.setUser(user);
+            System.out.println("User: " + user.getEmail() + ", Role: " + user.getRole());
 
-            // Set farmer info if user is a farmer
-            if (user.getRole().name().equals("FARMER")) {
+            if (user.getRole() == UserRole.FARMER) {
+                FarmerCrop crop = new FarmerCrop();
+                crop.setUser(user);
+                crop.setName((String) cropData.get("name"));
+                crop.setCropType((String) cropData.get("cropType"));
+                crop.setHarvestDate(java.time.LocalDate.parse((String) cropData.get("harvestDate")));
+                crop.setExpiryDate(java.time.LocalDate.parse((String) cropData.get("expiryDate")));
+                crop.setSoilType((String) cropData.get("soilType"));
+                crop.setPesticidesUsed((String) cropData.get("pesticidesUsed"));
+                crop.setImageUrl((String) cropData.get("imageUrl"));
                 crop.setFarmerId(user.getFarmerId());
                 crop.setFarmerName(user.getName());
                 crop.setFarmerLocation(user.getLocation());
+
+                FarmerCrop savedCrop = farmerCropRepository.save(crop);
+                System.out.println("Farmer crop saved with ID: " + savedCrop.getId());
+                return ResponseEntity.ok(convertFarmerCropToMap(savedCrop));
+
+            } else if (user.getRole() == UserRole.DISTRIBUTOR) {
+                DistributorCrop crop = new DistributorCrop();
+                crop.setUser(user);
+                crop.setName((String) cropData.get("name"));
+                crop.setCropType((String) cropData.get("cropType"));
+                crop.setHarvestDate(java.time.LocalDate.parse((String) cropData.get("harvestDate")));
+                crop.setExpiryDate(java.time.LocalDate.parse((String) cropData.get("expiryDate")));
+                crop.setSoilType((String) cropData.get("soilType"));
+                crop.setPesticidesUsed((String) cropData.get("pesticidesUsed"));
+                crop.setImageUrl((String) cropData.get("imageUrl"));
+                crop.setDistributorId(user.getDistributorId());
+                crop.setDistributorName(user.getName());
+                crop.setDistributorLocation(user.getLocation());
+
+                DistributorCrop savedCrop = distributorCropRepository.save(crop);
+                System.out.println("Distributor crop saved with ID: " + savedCrop.getId());
+                return ResponseEntity.ok(convertDistributorCropToMap(savedCrop));
+
+            } else if (user.getRole() == UserRole.RETAILER) {
+                RetailerCrop crop = new RetailerCrop();
+                crop.setUser(user);
+                crop.setName((String) cropData.get("name"));
+                crop.setCropType((String) cropData.get("cropType"));
+                crop.setHarvestDate(java.time.LocalDate.parse((String) cropData.get("harvestDate")));
+                crop.setExpiryDate(java.time.LocalDate.parse((String) cropData.get("expiryDate")));
+                crop.setSoilType((String) cropData.get("soilType"));
+                crop.setPesticidesUsed((String) cropData.get("pesticidesUsed"));
+                crop.setImageUrl((String) cropData.get("imageUrl"));
+                crop.setRetailerName(user.getName());
+                crop.setRetailerLocationAddress(user.getLocation());
+
+                RetailerCrop savedCrop = retailerCropRepository.save(crop);
+                System.out.println("Retailer crop saved with ID: " + savedCrop.getId());
+                return ResponseEntity.ok(convertRetailerCropToMap(savedCrop));
             }
 
-            Crop savedCrop = cropService.saveCrop(crop);
-            System.out.println("Crop saved with ID: " + savedCrop.getId());
-            return ResponseEntity.ok(savedCrop);
+            return ResponseEntity.badRequest().body("Invalid user role for creating crops");
         } catch (Exception e) {
             System.err.println("Error creating crop: " + e.getMessage());
             e.printStackTrace();
@@ -61,50 +132,58 @@ public class CropController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateCrop(@PathVariable Long id, @Valid @RequestBody Crop cropDetails) {
+    public ResponseEntity<?> updateCrop(@PathVariable Long id, @Valid @RequestBody Map<String, Object> cropData) {
         try {
-            Optional<Crop> cropOptional = cropService.getCropById(id);
-            if (!cropOptional.isPresent()) {
-                return ResponseEntity.notFound().build();
-            }
-
-            Crop crop = cropOptional.get();
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             User user = (User) auth.getPrincipal();
 
-            // Check if user owns the crop or is updating supply chain info
-            if (!crop.getUser().getId().equals(user.getId()) &&
-                !user.getRole().name().equals("DISTRIBUTOR") &&
-                !user.getRole().name().equals("RETAILER")) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            if (user.getRole() == UserRole.FARMER) {
+                FarmerCrop crop = farmerCropRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Crop not found"));
+
+                crop.setName((String) cropData.get("name"));
+                crop.setCropType((String) cropData.get("cropType"));
+                crop.setHarvestDate(java.time.LocalDate.parse((String) cropData.get("harvestDate")));
+                crop.setExpiryDate(java.time.LocalDate.parse((String) cropData.get("expiryDate")));
+                crop.setSoilType((String) cropData.get("soilType"));
+                crop.setPesticidesUsed((String) cropData.get("pesticidesUsed"));
+                crop.setImageUrl((String) cropData.get("imageUrl"));
+
+                FarmerCrop updatedCrop = farmerCropRepository.save(crop);
+                return ResponseEntity.ok(convertFarmerCropToMap(updatedCrop));
+
+            } else if (user.getRole() == UserRole.DISTRIBUTOR) {
+                DistributorCrop crop = distributorCropRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Crop not found"));
+
+                crop.setName((String) cropData.get("name"));
+                crop.setCropType((String) cropData.get("cropType"));
+                crop.setHarvestDate(java.time.LocalDate.parse((String) cropData.get("harvestDate")));
+                crop.setExpiryDate(java.time.LocalDate.parse((String) cropData.get("expiryDate")));
+                crop.setSoilType((String) cropData.get("soilType"));
+                crop.setPesticidesUsed((String) cropData.get("pesticidesUsed"));
+                crop.setImageUrl((String) cropData.get("imageUrl"));
+
+                DistributorCrop updatedCrop = distributorCropRepository.save(crop);
+                return ResponseEntity.ok(convertDistributorCropToMap(updatedCrop));
+
+            } else if (user.getRole() == UserRole.RETAILER) {
+                RetailerCrop crop = retailerCropRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Crop not found"));
+
+                crop.setName((String) cropData.get("name"));
+                crop.setCropType((String) cropData.get("cropType"));
+                crop.setHarvestDate(java.time.LocalDate.parse((String) cropData.get("harvestDate")));
+                crop.setExpiryDate(java.time.LocalDate.parse((String) cropData.get("expiryDate")));
+                crop.setSoilType((String) cropData.get("soilType"));
+                crop.setPesticidesUsed((String) cropData.get("pesticidesUsed"));
+                crop.setImageUrl((String) cropData.get("imageUrl"));
+
+                RetailerCrop updatedCrop = retailerCropRepository.save(crop);
+                return ResponseEntity.ok(convertRetailerCropToMap(updatedCrop));
             }
 
-            // Update crop fields
-            crop.setName(cropDetails.getName());
-            crop.setCropType(cropDetails.getCropType());
-            crop.setHarvestDate(cropDetails.getHarvestDate());
-            crop.setExpiryDate(cropDetails.getExpiryDate());
-            crop.setSoilType(cropDetails.getSoilType());
-            crop.setPesticidesUsed(cropDetails.getPesticidesUsed());
-            crop.setImageUrl(cropDetails.getImageUrl());
-
-            // Update supply chain info based on user role
-            if (user.getRole().name().equals("DISTRIBUTOR")) {
-                crop.setDistributorId(user.getDistributorId());
-                crop.setDistributorName(user.getName());
-                crop.setDistributorLocation(user.getLocation());
-                crop.setDistributorReceivedDate(cropDetails.getDistributorReceivedDate());
-                crop.setSentToRetailer(cropDetails.getSentToRetailer());
-                crop.setRetailerLocation(cropDetails.getRetailerLocation());
-            } else if (user.getRole().name().equals("RETAILER")) {
-                crop.setRetailerName(user.getName());
-                crop.setRetailerReceivedDate(cropDetails.getRetailerReceivedDate());
-                crop.setReceivedFromDistributor(cropDetails.getReceivedFromDistributor());
-                crop.setDistributorLocationRetailer(cropDetails.getDistributorLocationRetailer());
-            }
-
-            Crop updatedCrop = cropService.updateCrop(crop);
-            return ResponseEntity.ok(updatedCrop);
+            return ResponseEntity.badRequest().body("Invalid user role");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error updating crop: " + e.getMessage());
         }
@@ -113,21 +192,17 @@ public class CropController {
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteCrop(@PathVariable Long id) {
         try {
-            Optional<Crop> cropOptional = cropService.getCropById(id);
-            if (!cropOptional.isPresent()) {
-                return ResponseEntity.notFound().build();
-            }
-
-            Crop crop = cropOptional.get();
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             User user = (User) auth.getPrincipal();
 
-            // Only crop owner can delete
-            if (!crop.getUser().getId().equals(user.getId())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You cannot delete this crop");
+            if (user.getRole() == UserRole.FARMER) {
+                farmerCropRepository.deleteById(id);
+            } else if (user.getRole() == UserRole.DISTRIBUTOR) {
+                distributorCropRepository.deleteById(id);
+            } else if (user.getRole() == UserRole.RETAILER) {
+                retailerCropRepository.deleteById(id);
             }
 
-            cropService.deleteCrop(id);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error deleting crop: " + e.getMessage());
@@ -135,29 +210,95 @@ public class CropController {
     }
 
     @GetMapping("/farmer/{farmerId}")
-    public ResponseEntity<List<Crop>> getCropsByFarmerId(@PathVariable String farmerId) {
-        List<Crop> crops = cropService.getCropsByFarmerId(farmerId);
-        return ResponseEntity.ok(crops);
+    public ResponseEntity<?> getCropsByFarmerId(@PathVariable String farmerId) {
+        try {
+            List<FarmerCrop> farmerCrops = farmerCropRepository.findByFarmerId(farmerId);
+            List<Map<String, Object>> crops = new ArrayList<>();
+            for (FarmerCrop crop : farmerCrops) {
+                crops.add(convertFarmerCropToMap(crop));
+            }
+            return ResponseEntity.ok(crops);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error fetching crops: " + e.getMessage());
+        }
     }
 
     @GetMapping("/distributor/{distributorId}")
-    public ResponseEntity<List<Crop>> getCropsByDistributorId(@PathVariable String distributorId) {
-        List<Crop> crops = cropService.getCropsByDistributorId(distributorId);
-        return ResponseEntity.ok(crops);
+    public ResponseEntity<?> getCropsByDistributorId(@PathVariable String distributorId) {
+        try {
+            List<DistributorCrop> distributorCrops = distributorCropRepository.findByDistributorId(distributorId);
+            List<Map<String, Object>> crops = new ArrayList<>();
+            for (DistributorCrop crop : distributorCrops) {
+                crops.add(convertDistributorCropToMap(crop));
+            }
+            return ResponseEntity.ok(crops);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error fetching crops: " + e.getMessage());
+        }
     }
 
-    @GetMapping("/scan/{cropId}")
-    public ResponseEntity<?> getCropForScanning(@PathVariable Long cropId) {
-        try {
-            Optional<Crop> cropOptional = cropService.getCropById(cropId);
-            if (!cropOptional.isPresent()) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Crop not found");
-            }
+    private Map<String, Object> convertFarmerCropToMap(FarmerCrop crop) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", crop.getId());
+        map.put("name", crop.getName());
+        map.put("cropType", crop.getCropType());
+        map.put("harvestDate", crop.getHarvestDate());
+        map.put("expiryDate", crop.getExpiryDate());
+        map.put("soilType", crop.getSoilType());
+        map.put("pesticidesUsed", crop.getPesticidesUsed());
+        map.put("imageUrl", crop.getImageUrl());
+        map.put("farmerId", crop.getFarmerId());
+        map.put("farmerName", crop.getFarmerName());
+        map.put("farmerLocation", crop.getFarmerLocation());
+        map.put("createdAt", crop.getCreatedAt());
+        return map;
+    }
 
-            Crop crop = cropOptional.get();
-            return ResponseEntity.ok(crop);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error retrieving crop: " + e.getMessage());
-        }
+    private Map<String, Object> convertDistributorCropToMap(DistributorCrop crop) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", crop.getId());
+        map.put("name", crop.getName());
+        map.put("cropType", crop.getCropType());
+        map.put("harvestDate", crop.getHarvestDate());
+        map.put("expiryDate", crop.getExpiryDate());
+        map.put("soilType", crop.getSoilType());
+        map.put("pesticidesUsed", crop.getPesticidesUsed());
+        map.put("imageUrl", crop.getImageUrl());
+        map.put("farmerId", crop.getFarmerId());
+        map.put("farmerName", crop.getFarmerName());
+        map.put("farmerLocation", crop.getFarmerLocation());
+        map.put("distributorId", crop.getDistributorId());
+        map.put("distributorName", crop.getDistributorName());
+        map.put("distributorLocation", crop.getDistributorLocation());
+        map.put("distributorReceivedDate", crop.getDistributorReceivedDate());
+        map.put("sentToRetailer", crop.getSentToRetailer());
+        map.put("retailerLocation", crop.getRetailerLocation());
+        map.put("createdAt", crop.getCreatedAt());
+        return map;
+    }
+
+    private Map<String, Object> convertRetailerCropToMap(RetailerCrop crop) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", crop.getId());
+        map.put("name", crop.getName());
+        map.put("cropType", crop.getCropType());
+        map.put("harvestDate", crop.getHarvestDate());
+        map.put("expiryDate", crop.getExpiryDate());
+        map.put("soilType", crop.getSoilType());
+        map.put("pesticidesUsed", crop.getPesticidesUsed());
+        map.put("imageUrl", crop.getImageUrl());
+        map.put("farmerId", crop.getFarmerId());
+        map.put("farmerName", crop.getFarmerName());
+        map.put("farmerLocation", crop.getFarmerLocation());
+        map.put("distributorId", crop.getDistributorId());
+        map.put("distributorName", crop.getDistributorName());
+        map.put("distributorLocation", crop.getDistributorLocation());
+        map.put("distributorReceivedDate", crop.getDistributorReceivedDate());
+        map.put("retailerName", crop.getRetailerName());
+        map.put("retailerLocationAddress", crop.getRetailerLocationAddress());
+        map.put("retailerReceivedDate", crop.getRetailerReceivedDate());
+        map.put("receivedFromDistributor", crop.getReceivedFromDistributor());
+        map.put("createdAt", crop.getCreatedAt());
+        return map;
     }
 }
